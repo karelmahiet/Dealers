@@ -27,8 +27,8 @@ int etat = 0; // = 0 arrêt 1 = avance 2 = recule 3 = TourneDroit 4 = TourneGauc
 int etatPast = 0;
 float vitesse = 0.40;
 bool finLabyrinthe = false; // laby fini ou pas
-unsigned long tempsDebut = 0; // temps au debut
-bool timerDemarre = false;    // check si timer a start
+// unsigned long tempsDebut = 0; // temps au debut
+// bool timerDemarre = false;    // check si timer a start
 
 // Tableau pour stocker les mouvements
 const int tailleMax = 100;
@@ -39,28 +39,28 @@ int indexMouvements = 0;
 const int lignes = 21;
 const int colonnes = 7;
 int tapeMap[lignes][colonnes] = {
-  //1 = tape, 0 = no tape
-  {0, 0, 0, 0, 0, 0, 0},
-  {0, 1, 0, 1, 0, 0, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 1, 0},
-  {0, 0, 0, 0, 0, 0, 0}
+  //1 = tape, 0 = no tape, 2 = fin
+  {1, 1, 1, 1, 1, 1, 1},
+  {1, 0, 2, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 0, 0, 0, 0, 0, 1},
+  {1, 1, 1, 1, 1, 1, 1}
 };
 
 // Variables de position du robot
@@ -85,6 +85,14 @@ void beep(int count){
 bool estSurTape(int x, int y) {
   if (x >= 0 && x < colonnes && y >= 0 && y < lignes) {
     return tapeMap[y][x] == 1;
+  }
+  return false;
+}
+
+//fonction pour check si fini
+bool estFini(int x, int y) {
+  if (x >= 0 && x < colonnes && y >= 0 && y < lignes) {
+    return tapeMap[y][x] == 2; // check si ya un 2 dans position
   }
   return false;
 }
@@ -129,14 +137,18 @@ void avancerEtEnregistrer(){
   int prochainePosX = posX; // Incrémente ou modifie selon direction
   int prochainePosY = posY + 1; // Ex: avance
 
-  if (!estSurTape(prochainePosX, prochainePosY)) {
+  // Vérifie si le robot a atteint la fin du labyrinthe
+  if (estFini(prochainePosX, prochainePosY)) {
+    finLabyrinthe = true;  // Marque la fin du labyrinthe
+    beep(3);  // Signal de fin
+  } else if (!estSurTape(prochainePosX, prochainePosY)) {
     avance();
-    posX = prochainePosX; // update la position
+    posX = prochainePosX; // Met à jour la position
     posY = prochainePosY;
     enregistrerMouvement(1);
   } else {
     // Si tape est détecté, ne bouge pas
-    beep(2); // Signal pour dire que ya du tape
+    beep(2); // Signal pour dire qu'il y a du tape
   }
 }
 
@@ -196,10 +208,10 @@ void loop() {
     if (etat == 0){
       beep(2);
       etat = 1;
-      if (!timerDemarre) {
-        tempsDebut = millis(); // start timer
-        timerDemarre = true;
-      }
+      // if (!timerDemarre) {
+      //   tempsDebut = millis(); // start timer
+      //   timerDemarre = true;
+      // }
     } 
     else{
       beep(1);
@@ -210,11 +222,11 @@ void loop() {
   vert = digitalRead(vertpin);
   rouge = digitalRead(rougepin);
 
-//handle le timer
-  if (timerDemarre && (millis() - tempsDebut >= 5000)) {
-    finLabyrinthe = true;
-    timerDemarre = false;
-  }
+// //handle le timer
+//   if (timerDemarre && (millis() - tempsDebut >= 5000)) {
+//     finLabyrinthe = true;
+//     timerDemarre = false;
+//   }
 
   if (etat > 0 && !finLabyrinthe){
     if (vert && rouge){
