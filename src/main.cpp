@@ -204,19 +204,9 @@ void loop() {
   etatPast = etat;
   bumperArr = ROBUS_IsBumper(3);
   
-  if (bumperArr){
-    if (etat == 0){
-      beep(2);
+  if (analogRead(A0)>=500){
+      
       etat = 1;
-      // if (!timerDemarre) {
-      //   tempsDebut = millis(); // start timer
-      //   timerDemarre = true;
-      // }
-    } 
-    else{
-      beep(1);
-      etat = 0;
-    }
   }
   
   vert = digitalRead(vertpin);
