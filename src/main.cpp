@@ -1,9 +1,9 @@
 /*
-Projet: Le nom du script
+Projet: Robot A15
 Equipe: P15
-Auteurs: Les membres auteurs du script
-Description: Breve description du script
-Date: Derniere date de modification
+Auteurs: Karel Mahiet, Dylan Gagnon, Marek Doucet
+Description: Fait déplacer le robot dans le labyrinthe
+Date: 26 septembre 2024
 */
 
 /*
@@ -35,6 +35,38 @@ const int tailleMax = 100;
 int mouvements[tailleMax];
 int indexMouvements = 0;
 
+// matrice pour tape
+const int lignes = 21;
+const int colonnes = 7;
+int tapeMap[lignes][colonnes] = {
+  //1 = tape, 0 = no tape
+  {0, 0, 0, 0, 0, 0, 0},
+  {0, 1, 0, 1, 0, 0, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 1, 0},
+  {0, 0, 0, 0, 0, 0, 0}
+};
+
+// Variables de position du robot
+int posX = 0; // Position live sur x
+int posY = 0; // Position live sur y
+
 /*
 Vos propres fonctions sont creees ici
 */
@@ -47,6 +79,14 @@ void beep(int count){
     delay(100);  
   }
   delay(400);
+}
+
+// Fonction pour check si tape
+bool estSurTape(int x, int y) {
+  if (x >= 0 && x < colonnes && y >= 0 && y < lignes) {
+    return tapeMap[y][x] == 1;
+  }
+  return false;
 }
 
 //fonctions pour mouvements du prof
@@ -85,8 +125,19 @@ void enregistrerMouvement(int mouvement){
 }
 
 void avancerEtEnregistrer(){
-  avance();
-  enregistrerMouvement(1);
+  // check prochaine position avant d'avancer
+  int prochainePosX = posX; // Incrémente ou modifie selon direction
+  int prochainePosY = posY + 1; // Ex: avance
+
+  if (!estSurTape(prochainePosX, prochainePosY)) {
+    avance();
+    posX = prochainePosX; // update la position
+    posY = prochainePosY;
+    enregistrerMouvement(1);
+  } else {
+    // Si tape est détecté, ne bouge pas
+    beep(2); // Signal pour dire que ya du tape
+  }
 }
 
 void tournerGaucheEtEnregistrer(){
@@ -159,7 +210,6 @@ void loop() {
   vert = digitalRead(vertpin);
   rouge = digitalRead(rougepin);
 
-
 //handle le timer
   if (timerDemarre && (millis() - tempsDebut >= 5000)) {
     finLabyrinthe = true;
@@ -192,36 +242,3 @@ void loop() {
     finLabyrinthe = false;
   }
 }
-
-// switch case du prof
-//
-//   if (etatPast != etat){
-//     arret();
-//     delay(50);
-//   }
-//   else{
-//     switch (etat)
-//     {
-//     case 0:
-//       arret();
-//       break;
-//     case 1:
-//       avance();
-//       break;
-//     case 2:
-//       recule();
-//       break;
-//     case 3:
-//       tourneDroit();
-//       break;
-//     case 4:
-//       tourneGauche();
-//       break;            
-//     default:
-//       avance();
-//       etat = 1;
-//       break;
-//     }
-//   }
-//   delay(200);
-// }
