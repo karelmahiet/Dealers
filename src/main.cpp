@@ -53,7 +53,7 @@ int tapeMap[lignes][colonnes] = {
   {1, 0, 0, 0, 0, 0, 1},
   {1, 0, 0, 0, 0, 0, 1},
   {1, 0, 0, 0, 0, 0, 1},
-  {1, 0, 0, 0, 0, 0, 1},
+  {1, 1, 1, 1, 1, 1, 1},
   {1, 0, 0, 0, 0, 0, 1},
   {1, 0, 0, 0, 0, 0, 1},
   {1, 0, 0, 0, 0, 0, 1},
@@ -189,7 +189,7 @@ Fonctions d'initialisation (setup)
 */
 void setup(){
   BoardInit();
-  
+  pinMode(A0, INPUT);
   pinMode(vertpin, INPUT);
   pinMode(rougepin, INPUT);
   delay(100);
