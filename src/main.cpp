@@ -9,6 +9,14 @@ Date: septembre-octobre 2024
 #include <Arduino.h>
 #include <librobus.h>
 
+//Variables robot A
+const int nbBitDroiteA = 1800;
+const int nbBitGaucheA = 1450;
+const int nbBitAvantA = 6400;
+const int kpA = 0.00001;
+float vitesseDroiteA = 0.385;
+float vitesseGaucheA = 0.396;
+
 bool intelligenceActive = false;
 bool tapeExsistant = true;
 bool etatChoisi = false;
@@ -32,9 +40,6 @@ int indexMouvements = 0;
 
 int etat = 0; // 0:arrêt, 1:avance, 2:recule, 3:TourneDroit, 4:TourneGauche
 int etatPast = 0;
-
-float vitesseRight = 0.40;
-float vitesseLeft = 0.40;
 
 int32_t encodeurGauche = 0;
 int32_t encodeurDroite = 0;
@@ -267,23 +272,32 @@ void arret(){
   MOTOR_SetSpeed(RIGHT, 0);
   MOTOR_SetSpeed(LEFT, 0);
 
-  enregistrerMouvement(0);
+  if (parcours[ligneCourante][colonneCourante] != 3)
+  {
+    enregistrerMouvement(0);
+  }
 };
 
 void avance(){
-  MOTOR_SetSpeed(RIGHT,vitesseRight);
-  MOTOR_SetSpeed(LEFT, vitesseLeft);
+  MOTOR_SetSpeed(RIGHT,vitesseDroiteA);
+  MOTOR_SetSpeed(LEFT, vitesseGaucheA);
 
   encodeurDroite = ENCODER_Read(1);
 
-  if(encodeurDroite > 5200) //À faire lorsque les 50cm sont complétés
+  if(encodeurDroite > nbBitAvantA) //À faire lorsque les 50cm sont complétés
   {
-    encodeurDroite = ENCODER_ReadReset(1);
-    AjusterPositionActuelle();
-    etatChoisi = false;
+     ENCODER_Reset(0);
+        ENCODER_Reset(1);
+        AjusterPositionActuelle();
+        arret();
+        delay(200);
+        etatChoisi = false;
   }
 
-  enregistrerMouvement(1);
+  if (parcours[ligneCourante][colonneCourante] != 3)
+  {
+    enregistrerMouvement(1);
+  }
 
   //À faire lorsque les 50cm sont complétés
   //AjusterPositionActuelle();
@@ -292,16 +306,19 @@ void avance(){
 
 // Fonction pour reculer
 void recule() {
-  MOTOR_SetSpeed(RIGHT, -vitesseRight);
-  MOTOR_SetSpeed(LEFT, -vitesseLeft);
+  MOTOR_SetSpeed(RIGHT, -0.5*vitesseDroiteA);
+  MOTOR_SetSpeed(LEFT, -0.5*vitesseGaucheA);
 
   encodeurDroite = ENCODER_Read(1);
 
-  if(encodeurDroite > 5200) //À faire lorsque les 50cm sont complétés
+  if(encodeurDroite > nbBitAvantA) //À faire lorsque les 50cm sont complétés
   {
-    encodeurDroite = ENCODER_ReadReset(1);
-    AjusterPositionActuelle();
-    etatChoisi = false;
+     ENCODER_Reset(0);
+        ENCODER_Reset(1);
+        AjusterPositionActuelle();
+        etatChoisi = false;
+        arret();
+        delay(200);
   }
 
   //À faire lorsque les 50cm sont complétés
@@ -311,19 +328,25 @@ void recule() {
 
 
 void tourneDroit(){
-  MOTOR_SetSpeed(RIGHT, -0.5*vitesseRight);
-  MOTOR_SetSpeed(LEFT, 0.5*vitesseLeft);
+  MOTOR_SetSpeed(RIGHT, -0.5*vitesseDroiteA);
+  MOTOR_SetSpeed(LEFT, 0.5*vitesseGaucheA);
 
-  encodeurDroite = ENCODER_Read(1);
+  encodeurGauche = ENCODER_Read(0);
 
-  if(encodeurDroite > 900) //À faire lorsque le 90 degré est complété
+  if(encodeurGauche > nbBitDroiteA) //À faire lorsque le 90 degré est complété
   {
-    encodeurDroite = ENCODER_ReadReset(1);
+    ENCODER_Reset(0);
+    ENCODER_Reset(1);
     AjusterDirectionDroite();
+    arret();
+    delay(200);  
     etatChoisi = false;
   }
 
-  enregistrerMouvement(3);
+  if (parcours[ligneCourante][colonneCourante] != 3)
+  {
+    enregistrerMouvement(3);
+  }
 
   //À faire lorsque le 90 degré est complété
   //AjusterDirectionDroite();
@@ -331,20 +354,27 @@ void tourneDroit(){
 };
 
 void tourneGauche(){
-  MOTOR_SetSpeed(RIGHT, 0.5*vitesseRight);
-  MOTOR_SetSpeed(LEFT, -0.5*vitesseLeft);
+  MOTOR_SetSpeed(RIGHT, 0.5*vitesseDroiteA);
+  MOTOR_SetSpeed(LEFT, -0.5*vitesseGaucheA);
 
   encodeurDroite = ENCODER_Read(1);
 
-  if(encodeurDroite > 900) //À faire lorsque le 90 degré est complété
+  if(encodeurDroite > nbBitGaucheA) //À faire lorsque le 90 degré est complété
   {
-    encodeurDroite = ENCODER_ReadReset(1);
+    ENCODER_Reset(0);
+    ENCODER_Reset(1);
     AjusterDirectionGauche();
     delay(200);
     etat = 1;
+    arret();
+    delay(200);  
   }
-
-  enregistrerMouvement(4);
+  
+  if (parcours[ligneCourante][colonneCourante] != 3)
+  {
+    enregistrerMouvement(4);
+  }
+  
 
   //À faire lorsque le 90 degré est complété
   //AjusterDirectionGauche();
@@ -370,12 +400,18 @@ void revenirEnArriere() {
     switch (dernierMouvement) {
       case 1:
         recule();
+        arret();
+        delay(50);
         break;
       case 3:
         tourneGauche();
+        arret();
+        delay(50);
         break;
       case 4:
         tourneDroit();
+        arret();
+        delay(50);
         break;
     }
     delay(500);
@@ -385,7 +421,7 @@ void revenirEnArriere() {
 void loop()
 {
   etatPast = etat;
-  if (estAuDepart && !intelligenceActive && analogRead(sonPin) >= 550){
+  if (estAuDepart && !intelligenceActive && (analogRead(sonPin) >= 550||ROBUS_IsBumper(3))){
       beep(2);
       intelligenceActive = true;
       estAuDepart = false;
@@ -401,7 +437,7 @@ void loop()
 
   if (etatPast != etat){ //fait une pause entre les changements d'état
     arret();
-    delay(50);
+    delay(100);
   }
   else{
     switch (etat)
