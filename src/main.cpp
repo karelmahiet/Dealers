@@ -1,9 +1,9 @@
 /*
 Projet: Défi du labyrinthe
 Equipe: P15
-Auteurs: Jérémie Perron
+Auteurs: Jérémie Perron, Vincent Lebeuf, Karel Mahiet, Dylan Gagnon
 Description: Algorithme de résolution de labyrinthe
-Date: 26 octobre 2024
+Date: septembre-octobre 2024
 */
 
 #include <Arduino.h>
