@@ -1,26 +1,27 @@
 /*
 Projet: Défi du labyrinthe
 Equipe: P15
-Auteurs: Jérémie Perron, Vincent Lebeuf, Karel Mahiet, Dylan Gagnon
+Auteurs: Karel Mahiet, Jérémie Perron, Vincent Lebeuf
 Description: Algorithme de résolution de labyrinthe
-Date: septembre-octobre 2024
+Date: 8 octobre 2024
 */
 
 #include <Arduino.h>
 #include <librobus.h>
 
-//Variables robot A
-const int nbBitDroiteA = 1800;
-const int nbBitGaucheA = 1450;
-const int nbBitAvantA = 6400;
-const int kpA = 0.00001;
-float vitesseDroiteA = 0.385;
-float vitesseGaucheA = 0.396;
+//Variables pour robotA
+int nbBitDroiteA = 1282;
+int nbBitGaucheA = 1293;
+int nbBitAvantA = 6450;
+float vitesseDroiteA = 0.591;
+float vitesseGaucheA = 0.615;
 
+//Variables globales
 bool intelligenceActive = false;
 bool tapeExsistant = true;
 bool etatChoisi = false;
 bool estAuDepart = true;
+bool estEnReverse = false;
 
 int vertPinAvant = 48;
 int rougePinAvant = 49;
@@ -33,46 +34,48 @@ bool rougeAvant = false;
 bool vertGauche = false;
 bool rougeGauche = false;
 
-// Tableau pour stocker les mouvements
-const int tailleMax = 100;
-int mouvements[tailleMax];
-int indexMouvements = 0;
-
 int etat = 0; // 0:arrêt, 1:avance, 2:recule, 3:TourneDroit, 4:TourneGauche
 int etatPast = 0;
 
 int32_t encodeurGauche = 0;
 int32_t encodeurDroite = 0;
 
+int parcoursReverseDroit [15] = {4,1,4,1,1,1,1,1,1,1,1,1,1,1,0};
+int parcoursReverseGauche [15] = {3,1,3,1,1,1,1,1,1,1,1,1,1,1,0};
+int compteurReverse = 0;
+int coteFinal = 0;
 
 //0: Case de contour inconnue (peut-être un mur, il faut utiliser le détecteur de proximité)
 //1: Case de contour interdite (tape)
 //2: Case de position
-//3: Case de postion de fin de parcours
-int parcours [21][7] = 
+//3: Case de postion de fin de parcours droit
+//4: Case de postion de fin de parcours gauche
+int parcours [23][7] = 
     {{1,1,1,1,1,1,1},
-     {1,3,1,3,1,3,1},
-     {1,0,1,0,1,0,1},
+     {1,4,1,2,1,3,1},
+     {1,0,1,1,1,0,1},
+     {1,2,1,2,1,2,1},
+     {1,0,1,1,1,0,1},
+     {1,2,0,2,0,2,1},
+     {1,0,1,1,1,0,1},
+     {1,2,1,2,1,2,1},
+     {1,0,1,1,1,0,1},
      {1,2,0,2,0,2,1},
      {1,0,1,0,1,0,1},
      {1,2,1,2,1,2,1},
      {1,0,1,0,1,0,1},
      {1,2,0,2,0,2,1},
-     {1,0,1,0,1,0,1},
+     {1,0,1,1,1,0,1},
      {1,2,1,2,1,2,1},
-     {1,0,1,0,1,0,1},
+     {1,0,1,1,1,0,1},
      {1,2,0,2,0,2,1},
-     {1,0,1,0,1,0,1},
+     {1,0,1,1,1,0,1},
      {1,2,1,2,1,2,1},
-     {1,0,1,0,1,0,1},
-     {1,2,0,2,0,2,1},
-     {1,0,1,0,1,0,1},
-     {1,2,1,2,1,2,1},
-     {1,0,1,0,1,0,1},
+     {1,0,1,1,1,0,1},
      {1,2,0,2,0,2,1},
      {1,1,1,1,1,1,1}};
 
-int ligneCourante = 19;
+int ligneCourante = 21;
 int colonneCourante = 3;
 int direction = 1; //1: avant, 2: arrière, 3:droit, 4:gauche
 
@@ -231,7 +234,7 @@ void AjusterDirectionDroite()
     }
 }
 
-void ChoisirEtat()
+void ChoisirEtatAller()
 {
     DetecterTapeGauche();
     if (vertGauche && rougeGauche && !tapeExsistant){ // si aucun obstacle à gauche => tourne à gauche et avance
@@ -261,124 +264,96 @@ void beep(int count){
   delay(400);
 }
 
-// Fonction pour enregistrer les mouvements
-void enregistrerMouvement(int mouvement) {
-  if (indexMouvements < tailleMax) {
-    mouvements[indexMouvements++] = mouvement;
-  }
-}
-
 void arret(){
   MOTOR_SetSpeed(RIGHT, 0);
   MOTOR_SetSpeed(LEFT, 0);
-
-  if (parcours[ligneCourante][colonneCourante] != 3)
-  {
-    enregistrerMouvement(0);
-  }
 };
 
 void avance(){
-  MOTOR_SetSpeed(RIGHT,vitesseDroiteA);
-  MOTOR_SetSpeed(LEFT, vitesseGaucheA);
+  MOTOR_SetSpeed(RIGHT, 0.5*vitesseDroiteA);
+  MOTOR_SetSpeed(LEFT, 0.5*vitesseGaucheA);
 
   encodeurDroite = ENCODER_Read(1);
 
-  if(encodeurDroite > nbBitAvantA) //À faire lorsque les 50cm sont complétés
+  if(encodeurDroite > 1000)
   {
-     ENCODER_Reset(0);
-        ENCODER_Reset(1);
-        AjusterPositionActuelle();
-        arret();
-        delay(200);
-        etatChoisi = false;
+      MOTOR_SetSpeed(RIGHT, vitesseDroiteA);
+      MOTOR_SetSpeed(LEFT, vitesseGaucheA);
   }
 
-  if (parcours[ligneCourante][colonneCourante] != 3)
+  if(encodeurDroite > 5000)
   {
-    enregistrerMouvement(1);
+      MOTOR_SetSpeed(RIGHT, 0.5*vitesseDroiteA);
+      MOTOR_SetSpeed(LEFT, 0.5*vitesseGaucheA);
   }
 
-  //À faire lorsque les 50cm sont complétés
-  //AjusterPositionActuelle();
-  //etatChoisi = false;
+  if(encodeurDroite > nbBitAvantA) //Lorsque les 50cm sont complétés
+  {
+    ENCODER_Reset(0);
+    ENCODER_Reset(1);
+    AjusterPositionActuelle();
+    arret();
+    delay(280);
+
+     if(!estEnReverse)
+     {
+         etatChoisi = false;
+     }
+     else
+     {
+       compteurReverse++;
+     }
+  }
 };
 
-// Fonction pour reculer
-void recule() {
-  MOTOR_SetSpeed(RIGHT, -0.5*vitesseDroiteA);
-  MOTOR_SetSpeed(LEFT, -0.5*vitesseGaucheA);
-
-  encodeurDroite = ENCODER_Read(1);
-
-  if(encodeurDroite > nbBitAvantA) //À faire lorsque les 50cm sont complétés
-  {
-     ENCODER_Reset(0);
-        ENCODER_Reset(1);
-        AjusterPositionActuelle();
-        etatChoisi = false;
-        arret();
-        delay(200);
-  }
-
-  //À faire lorsque les 50cm sont complétés
-  //AjusterPositionActuelle();
-  //etatChoisi = false;
-}
-
-
 void tourneDroit(){
-  MOTOR_SetSpeed(RIGHT, -0.5*vitesseDroiteA);
-  MOTOR_SetSpeed(LEFT, 0.5*vitesseGaucheA);
+  MOTOR_SetSpeed(RIGHT, -0.5/*-0.5*vitesseDroiteA*/);
+  MOTOR_SetSpeed(LEFT, 0.5/*0.5*vitesseGaucheA*/);
 
   encodeurGauche = ENCODER_Read(0);
 
-  if(encodeurGauche > nbBitDroiteA) //À faire lorsque le 90 degré est complété
+  if(encodeurGauche > nbBitDroiteA) //Lorsque le 90 degré est complété
   {
     ENCODER_Reset(0);
     ENCODER_Reset(1);
     AjusterDirectionDroite();
     arret();
-    delay(200);  
-    etatChoisi = false;
-  }
+    delay(280);
 
-  if (parcours[ligneCourante][colonneCourante] != 3)
-  {
-    enregistrerMouvement(3);
+    if(!estEnReverse)
+    {
+        etatChoisi = false;
+    }
+    else
+     {
+       compteurReverse++;
+     }
   }
-
-  //À faire lorsque le 90 degré est complété
-  //AjusterDirectionDroite();
-  //etatChoisi = false;
 };
 
 void tourneGauche(){
-  MOTOR_SetSpeed(RIGHT, 0.5*vitesseDroiteA);
-  MOTOR_SetSpeed(LEFT, -0.5*vitesseGaucheA);
+  MOTOR_SetSpeed(RIGHT, 0.5/*0.5*vitesseDroiteA*/);
+  MOTOR_SetSpeed(LEFT, -0.5/*-0.5*vitesseGaucheA*/);
 
   encodeurDroite = ENCODER_Read(1);
 
-  if(encodeurDroite > nbBitGaucheA) //À faire lorsque le 90 degré est complété
+  if(encodeurDroite > nbBitGaucheA) //Lorsque le 90 degré est complété
   {
     ENCODER_Reset(0);
     ENCODER_Reset(1);
     AjusterDirectionGauche();
-    delay(200);
-    etat = 1;
     arret();
-    delay(200);  
-  }
-  
-  if (parcours[ligneCourante][colonneCourante] != 3)
-  {
-    enregistrerMouvement(4);
-  }
-  
+    delay(280);
 
-  //À faire lorsque le 90 degré est complété
-  //AjusterDirectionGauche();
-  //etat = 1;
+    if(!estEnReverse)
+    {
+        etat = 1;
+    }
+    else
+     {
+       compteurReverse++;
+     }
+  }
 };
 
 void setup()
@@ -393,35 +368,10 @@ void setup()
   beep(3);
 }
 
-// Fonction pour revenir en arrière
-void revenirEnArriere() {
-  for (int i = indexMouvements - 1; i >= 0; i--) {
-    int dernierMouvement = mouvements[i];
-    switch (dernierMouvement) {
-      case 1:
-        recule();
-        arret();
-        delay(50);
-        break;
-      case 3:
-        tourneGauche();
-        arret();
-        delay(50);
-        break;
-      case 4:
-        tourneDroit();
-        arret();
-        delay(50);
-        break;
-    }
-    delay(500);
-  }
-}
-
 void loop()
 {
   etatPast = etat;
-  if (estAuDepart && !intelligenceActive && (analogRead(sonPin) >= 550||ROBUS_IsBumper(3))){
+  if (estAuDepart && !intelligenceActive && (analogRead(sonPin) >= 550 || ROBUS_IsBumper(3))){
       beep(2);
       intelligenceActive = true;
       estAuDepart = false;
@@ -432,12 +382,12 @@ void loop()
   vertGauche = digitalRead(vertPinGauche);
   rougeGauche = digitalRead(rougePinGauche);
   if (intelligenceActive && !etatChoisi){
-    ChoisirEtat();
+    ChoisirEtatAller();
   }
 
-  if (etatPast != etat){ //fait une pause entre les changements d'état
+  if (etatPast != etat){ //fait une pause minimale entre les changements d'état
     arret();
-    delay(100);
+    delay(50);
   }
   else{
     switch (etat)
@@ -453,7 +403,7 @@ void loop()
       break;
     case 4:
       tourneGauche();
-      break;            
+      break;           
     default:
       avance();
       etat = 1;
@@ -461,14 +411,34 @@ void loop()
     }
   }
 
-  //Arrêt du robot lorsqu'il arrive dans une des 3 cases de fin et lancement des déplacements inverses
-  if(parcours[ligneCourante][colonneCourante] == 3)
+  //Lorsque le robot arrive dans une des 3 cases de fin, on lance la rotation de 180 degrés
+  if((parcours[ligneCourante][colonneCourante] == 3 || parcours[ligneCourante][colonneCourante] == 4) && !estEnReverse)
   {
-    intelligenceActive = false;
-    etatChoisi = true;
-    etat = 0;
-    //FONCTION KAREL POUR LE RETOUR
-    revenirEnArriere();
+      estEnReverse = true;
+      intelligenceActive = false;
+      etatChoisi = true;
+      if(parcours[ligneCourante][colonneCourante] == 3)
+      {
+         coteFinal = 3;
+      }
+      else
+      {
+         coteFinal = 4;
+      }
   }
+
+  //À partir du moment où le parcours d'allée est complété, on défini l'état avec la matrice reverse
+  if(estEnReverse)
+  {
+    if(coteFinal == 3 && compteurReverse < 15)
+    {
+        etat = parcoursReverseDroit[compteurReverse];
+    }
+    if(coteFinal == 4 && compteurReverse < 15)
+    {
+        etat = parcoursReverseGauche[compteurReverse];
+    }
+  }
+
   delay(200);
 }
